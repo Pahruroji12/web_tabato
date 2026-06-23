@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Dokumen menu, topping, dan stok boleh dibaca oleh siapa saja (pelanggan & admin).
+    // Admin terautentikasi boleh membaca semua dokumen konfigurasi.
+    // Seluruh dokumen konfigurasi hanya boleh ditulis/diubah oleh admin terautentikasi.
+    match /config/{document} {
+      allow read: if document in ['menuData', 'toppings', 'stok'] || request.auth != null;
+      allow write: if request.auth != null;
+    }
+    
+    // Riwayat stok hanya boleh dibaca dan ditulis oleh admin yang terautentikasi
+    match /config/stokHistory {
+      allow read, write: if request.auth != null;
+    }
+
+    // Riwayat stok baru (koleksi stokHistory) - audit log imutabel
+    match /stokHistory/{docId} {
+      allow read, create: if request.auth != null;
+      allow update, delete: if false;
+    }
+    
+    // Kredensial lama (adminAuth) - diblokir sepenuhnya karena sudah beralih ke Firebase Auth
+    match /config/adminAuth {
+      allow read, write: if false;
+    }
+    
+    // Semua orang boleh membuat pesanan baru (online).
+    // Pelanggan boleh melihat status pesanan miliknya sendiri (read dengan get).
+    // Hanya admin terautentikasi yang bisa melihat list semua pesanan (list) atau meng-update statusnya.
+    match /pesanan/{orderId} {
+      allow create: if true;
+      allow get: if true; // Untuk checking resi mandiri
+      allow list, update, delete: if request.auth != null;
+    }
+  }
+}

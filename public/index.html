@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>Tabato - Tahu Baso Toping</title>
+    <link rel="icon" type="image/png" href="assets/img/favicon_medium.png" />
+    <meta
+      name="description"
+      content="Pesan Tahu Baso Toping (Tabato) tanpa antre. Scan, pilih, pesan, diantar ke lokasimu."
+    />
+
+    <!-- Font: Inter / Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Boxicons (CDN, tanpa download file) -->
+    <link
+      href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="style/style.css?v=1.2" />
+  </head>
+  <body>
+    <!-- Latar Belakang Transparent Grid Lines -->
+    <div class="background-grid"></div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <div id="mainContent">
+      <!-- Navbar -->
+      <header class="navbar">
+        <div class="navbar-inner">
+          <div class="brand">
+            <div class="brand-logo" style="background:transparent;box-shadow:none;"><img src="assets/img/logo.png" alt="Logo Tabato" style="width:100%;height:100%;object-fit:contain;"></div>
+            <div class="brand-text">
+              <h1>Tabato</h1>
+              <span>Tahu Baso Toping</span>
+            </div>
+          </div>
+          <div class="nav-actions">
+            <button class="icon-btn" id="themeToggle" aria-label="Ganti tema">
+              <i class="bx bx-moon"></i>
+            </button>
+            <button
+              class="icon-btn"
+              id="trackOrderBtn"
+              aria-label="Cek status pesanan"
+            >
+              <i class="bx bx-receipt"></i>
+            </button>
+            <button class="icon-btn" id="cartIconBtn" aria-label="Keranjang">
+              <i class="bx bx-cart"></i>
+              <span class="cart-badge" id="cartBadge" style="display: none"
+                >0</span
+              >
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="container">
+        <section class="hero">
+          <h2>Lapar? Pesan tanpa antre.</h2>
+          <p>
+            Pilih menu, isi lokasi, dan Tabato akan diantar langsung ke kelasmu dikampus Unpam.
+          </p>
+        </section>
+
+        <section id="menuGrid" style="margin-top: 22px;">
+          <!-- Diisi oleh JavaScript -->
+        </section>
+
+        <div class="footer-note-container">
+          <p class="footer-note">
+            Dibuat dengan <i class="bx bxs-heart" style="color: #ea580c"></i> oleh Tim Tabato
+          </p>
+          <p class="footer-note">
+            Kewirausahaan Sistem Informasi
+          </p>
+          <p class="footer-subnote">
+            KELOMPOK 3 &middot; 05SISE001 &middot; 2026
+          </p>
+        </div>
+      </main>
+
+      <!-- Sticky Cart Bar -->
+      <div class="sticky-cart-bar" id="stickyCartBar">
+        <div class="left">
+          <span class="count" id="barCount">0</span>
+          <span class="label">Lihat Keranjang</span>
+        </div>
+        <div class="right" id="barTotal">Rp 0</div>
+      </div>
+    </div>
+
+    <!-- ============ SHEET: DETAIL MENU ============ -->
+    <div class="overlay" id="detailSheet" role="dialog" aria-modal="true" aria-labelledby="detailNama">
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h2>Detail Menu</h2>
+          <button class="close-btn" data-close="detailSheet" aria-label="Tutup">
+            <i class="bx bx-x"></i>
+          </button>
+        </div>
+
+        <div class="detail-img" id="detailIcon"></div>
+        <div class="detail-title-row">
+          <h3 id="detailNama"></h3>
+          <span class="isi-badge" id="detailIsiBadge"
+            ><i class="bx bx-package"></i> 4 pcs / box</span
+          >
+        </div>
+        <p id="detailDeskripsi" style="margin-bottom: 18px"></p>
+
+        <!-- Untuk menu single-topping: tampilkan info topping tetap -->
+        <div class="option-group" id="singleToppingInfo" style="display: none">
+          <h4><i class="bx bx-info-circle"></i> Topping</h4>
+          <div class="single-topping-chip" id="singleToppingChip"></div>
+        </div>
+
+        <!-- Untuk menu Mix Topping: tampilkan checkbox multi-select -->
+        <div class="option-group" id="mixToppingGroup" style="display: none">
+          <h4>
+            <i class="bx bx-check-square"></i> Pilih Topping
+            <span class="topping-counter" id="toppingCounter">0/4</span>
+          </h4>
+          <p class="hint" style="margin-bottom: 10px">
+            Tentukan porsi tiap topping (total harus tepat 4 pcs per box).
+          </p>
+          <div class="topping-checkbox-list" id="topingList"></div>
+        </div>
+
+        <div class="qty-row">
+          <span class="qty-label" id="detailQtyLabel"><i class="bx bx-box"></i> Jumlah Box</span>
+          <div class="qty-control">
+            <button id="qtyMinus"><i class="bx bx-minus"></i></button>
+            <span id="detailQty">1</span>
+            <button id="qtyPlus"><i class="bx bx-plus"></i></button>
+          </div>
+        </div>
+
+        <button class="primary-btn" id="addToCartBtn">
+          <i class="bx bx-cart-add"></i>
+          <span>Tambah ke Keranjang</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ============ SHEET: KERANJANG ============ -->
+    <div class="overlay" id="cartSheet" role="dialog" aria-modal="true" aria-labelledby="cartTitle">
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h2 id="cartTitle">Keranjang Saya</h2>
+          <button class="close-btn" data-close="cartSheet" aria-label="Tutup">
+            <i class="bx bx-x"></i>
+          </button>
+        </div>
+
+        <div id="cartItems"></div>
+
+        <div class="cart-summary" id="cartSummary" style="display: none">
+          <div class="summary-row total">
+            <span>Total</span>
+            <span id="cartTotalPrice">Rp 0</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 18px">
+          <button class="primary-btn" id="goToCheckoutBtn" disabled>
+            <i class="bx bx-right-arrow-alt"></i>
+            <span>Lanjut ke Checkout</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ SHEET: CHECKOUT (Form Pemesanan) ============ -->
+    <div class="overlay" id="checkoutSheet" role="dialog" aria-modal="true" aria-labelledby="checkoutTitle">
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h2 id="checkoutTitle">Data Pemesanan</h2>
+          <button class="close-btn" data-close="checkoutSheet" aria-label="Tutup">
+            <i class="bx bx-x"></i>
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label for="inputNama"
+            ><i class="bx bx-user"></i> Nama Panggilan *</label
+          >
+          <input type="text" id="inputNama" placeholder="Contoh: Budi" />
+          <div class="field-error">Nama panggilan wajib diisi.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputWa"
+            ><i class="bx bxl-whatsapp"></i> Nomor WhatsApp (opsional)</label
+          >
+          <input type="tel" id="inputWa" placeholder="Contoh: 081234567890" />
+        </div>
+
+        <div class="form-group">
+          <label for="inputLokasi"
+            ><i class="bx bx-map-pin"></i> Detail Lokasi Pengantaran *</label
+          >
+          <textarea
+            id="inputLokasi"
+            placeholder="Contoh: Gedung A, Lantai 2, Ruang Kelas 203"
+          ></textarea>
+          <div class="field-error">Lokasi pengantaran wajib diisi.</div>
+        </div>
+
+        <div class="form-group">
+          <label><i class="bx bx-wallet"></i> Metode Pembayaran *</label>
+          <div class="payment-method-group" id="checkoutPaymentMethod">
+            <button
+              type="button"
+              class="payment-method-btn active"
+              data-method="cash"
+            >
+              <i class="bx bx-money"></i> Cash
+            </button>
+            <button type="button" class="payment-method-btn" data-method="qris">
+              <i class="bx bx-qr-scan"></i> QRIS
+            </button>
+          </div>
+        </div>
+
+        <!-- Muncul hanya saat metode QRIS dipilih -->
+        <div id="qrisPaymentBox" style="display: none">
+          <div class="qris-box">
+            <div class="qris-total-amount" style="font-size:13.5px; color:var(--text-secondary); text-align:center; margin-bottom:14px; padding:10px; background:var(--bg-main); border:1px dashed var(--accent); border-radius:8px; font-weight:600;">
+              Total Pembayaran: <strong id="qrisTotalVal" style="color:var(--accent); font-size:18px; font-weight:800; display:block; margin-top:4px;">Rp 0</strong>
+            </div>
+            <img
+              src="assets/img/qris-tabato.jpeg"
+              alt="QRIS Tabato"
+              class="qris-image"
+            />
+            <p class="qris-hint">
+              Scan QR di atas menggunakan aplikasi e-wallet atau m-banking
+              favoritmu, lalu bayar sesuai total pesanan.
+            </p>
+          </div>
+          <label class="qris-confirm-check">
+            <input type="checkbox" id="qrisConfirmCheckbox" />
+            <span
+              >Saya sudah melakukan transfer / pembayaran via QRIS sesuai total
+              pesanan</span
+            >
+          </label>
+          <div class="field-error" id="qrisConfirmError">
+            Konfirmasi pembayaran wajib dicentang sebelum lanjut.
+          </div>
+        </div>
+
+        <button class="primary-btn" id="submitOrderBtn">
+          <i class="bx bx-send"></i>
+          <span>Pesan Sekarang</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ============ SHEET: CEK STATUS PESANAN ============ -->
+    <div class="overlay" id="trackSheet" role="dialog" aria-modal="true" aria-labelledby="trackTitle">
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h2 id="trackTitle">Cek Status Pesanan</h2>
+          <button class="close-btn" data-close="trackSheet" aria-label="Tutup">
+            <i class="bx bx-x"></i>
+          </button>
+        </div>
+
+        <div class="form-group" id="trackResiGroup">
+          <label for="trackResiInput"
+            ><i class="bx bx-receipt"></i> Nomor Resi</label
+          >
+          <input
+            type="text"
+            id="trackResiInput"
+            placeholder="Contoh: TBT-260622-1234"
+          />
+          <div class="field-error" id="trackResiError">
+            Nomor resi wajib diisi.
+          </div>
+        </div>
+
+        <button class="primary-btn" id="trackSearchBtn">
+          <i class="bx bx-search"></i>
+          <span>Cek Status</span>
+        </button>
+
+        <div id="trackResults" style="margin-top: 18px"></div>
+      </div>
+    </div>
+
+    <!-- ============ HALAMAN SUKSES ============ -->
+    <div class="success-screen" id="successScreen" style="display: none">
+      <div class="success-icon"><i class="bx bx-check"></i></div>
+      <h2>Pesanan Berhasil Dikirim!</h2>
+      <p>
+        Tabato kamu sedang disiapkan dan akan diantar ke
+        <strong id="successLokasi"></strong>. Mohon ditunggu ya!
+      </p>
+
+      <div class="resi-box">
+        <div class="resi-label"><i class="bx bx-receipt"></i> Nomor Resi</div>
+        <div class="resi-code" id="resiCode"></div>
+      </div>
+
+      <div class="success-note" style="margin: 18px auto; padding: 12px 16px; border-radius: 12px; background: var(--bg-main); border: 1px dashed var(--accent); max-width: 340px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; text-align: center;">
+        <i class="bx bx-info-circle" style="color: var(--accent); font-size: 18px; margin-bottom: 4px; display: block;"></i>
+        <strong>Catatan:</strong> Salin nomor resi di atas untuk melacak status pesanan Anda melalui ikon <strong>Cek Pesanan</strong> (<i class="bx bx-receipt"></i>) yang berada di sebelah ikon keranjang belanja di pojok kanan atas.
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: center; width: 100%; max-width: 340px; margin: 18px auto 0;">
+        <button class="secondary-btn" id="backToHomeBtn">
+          <i class="bx bx-refresh"></i>
+          <span>Pesan Lagi</span>
+        </button>
+        <button class="primary-btn" id="directTrackBtn">
+          <i class="bx bx-receipt"></i>
+          <span>Cek Pesanan</span>
+        </button>
+      </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

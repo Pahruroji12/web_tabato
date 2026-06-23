@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tabato Admin - POS System</title>
+    <link rel="icon" type="image/png" href="assets/img/favicon_medium.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="style/style.css?v=1.2" />
+  </head>
+  <body>
+    <!-- Latar Belakang Transparent Grid Lines -->
+    <div class="background-grid"></div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+
+    <!-- NOTIFIKASI PESANAN BARU (banner + suara) -->
+    <div class="new-order-banner" id="newOrderBanner">
+      <div class="new-order-banner-icon"><i class="bx bxs-bell-ring"></i></div>
+      <div class="new-order-banner-body">
+        <strong id="newOrderBannerTitle">Pesanan baru masuk!</strong>
+        <span id="newOrderBannerDesc"></span>
+      </div>
+      <button class="icon-btn" id="newOrderBannerClose">
+        <i class="bx bx-x"></i>
+      </button>
+    </div>
+    <audio
+      id="newOrderSound"
+      src="assets/sound/notif.mp3"
+      preload="auto"
+    ></audio>
+
+    <!-- LOGIN -->
+    <div id="loginScreen">
+      <div class="login-card">
+        <div class="login-logo" style="background:transparent;box-shadow:none;"><img src="assets/img/logo.png" alt="Logo Tabato" style="width:100%;height:100%;object-fit:contain;"></div>
+        <h1>Tabato Admin</h1>
+        <p>Masuk untuk mengakses dashboard POS</p>
+        <div class="field">
+          <label>Password Admin</label>
+          <input
+            type="password"
+            id="passwordInput"
+            placeholder="Masukkan password..."
+          />
+        </div>
+        <button id="loginBtn"><i class="bx bx-lock-open"></i> Masuk</button>
+        <div class="login-error" id="loginError">
+          Password salah. Coba lagi.
+        </div>
+        
+      </div>
+    </div>
+
+    <!-- APP SHELL -->
+    <div id="appShell">
+      <!-- Sidebar Overlay (mobile) -->
+      <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon" style="background:transparent;box-shadow:none;"><img src="assets/img/logo.png" alt="Logo Tabato" style="width:100%;height:100%;object-fit:contain;"></div>
+          <div class="sidebar-logo-text">
+            <h2>Tabato</h2>
+            <span>Admin POS</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <div class="nav-section-label">Utama</div>
+          <div class="nav-item active" data-page="dashboard">
+            <i class="bx bxs-dashboard"></i> Dashboard
+          </div>
+          <div class="nav-item" data-page="kasir">
+            <i class="bx bxs-shopping-bags"></i> Kasir / POS
+            <span class="nav-badge" id="orderBadge" style="display: none"
+              >0</span
+            >
+          </div>
+
+          <div class="nav-section-label">Manajemen</div>
+          <div class="nav-item" data-page="produk">
+            <i class="bx bxs-box"></i> Produk
+          </div>
+          <div class="nav-item" data-page="topping">
+            <i class="bx bxs-star"></i> Topping
+          </div>
+          <div class="nav-item" data-page="stok">
+            <i class="bx bxs-layer"></i> Stok
+          </div>
+
+          <div class="nav-section-label">Data</div>
+          <div class="nav-item" data-page="riwayat">
+            <i class="bx bx-history"></i> Riwayat Transaksi
+          </div>
+          <div class="nav-item" data-page="laporan">
+            <i class="bx bxs-report"></i> Laporan
+          </div>
+
+          <div class="nav-section-label">Sistem</div>
+          <div class="nav-item" data-page="settings">
+            <i class="bx bxs-cog"></i> Pengaturan
+          </div>
+        </nav>
+
+        <div class="sidebar-footer" style="display:flex; flex-direction:column; gap:8px; padding-bottom:12px;">
+          <div class="nav-item" id="logoutBtn" style="margin-bottom:0;">
+            <i class="bx bx-log-out"></i> Keluar
+          </div>
+          <div style="font-size:9.5px; color:var(--text-muted); text-align:center; padding:0 8px; font-weight:500;">
+            KWU 05SISE001 &middot; 2026
+          </div>
+        </div>
+      </aside>
+
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-btn" id="menuToggle">
+            <i class="bx bx-menu"></i>
+          </button>
+          <div>
+            <div class="topbar-title" id="topbarTitle">Dashboard</div>
+            <div class="topbar-subtitle" id="topbarDate"></div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <button class="icon-btn" id="themeToggle" title="Ganti Tema">
+            <i class="bx bx-moon"></i>
+          </button>
+          <button class="icon-btn" title="Refresh Data" id="refreshBtn">
+            <i class="bx bx-refresh"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main -->
+      <main class="main-content">
+        <!-- ===== DASHBOARD ===== -->
+        <div class="page active" id="page-dashboard">
+          <div class="stats-grid" id="statGrid"></div>
+
+          <div class="two-col">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title"
+                  ><i class="bx bxs-time-five" style="color: var(--accent)"></i>
+                  Pesanan Aktif</span
+                >
+                <button
+                  class="btn btn-outline btn-sm"
+                  onclick="navigate('kasir')"
+                >
+                  <i class="bx bx-right-arrow-alt"></i> Lihat Semua
+                </button>
+              </div>
+              <div id="dashActiveOrders"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title"
+                  ><i class="bx bxs-package" style="color: var(--warning)"></i>
+                  Stok Menipis</span
+                >
+              </div>
+              <div id="dashLowStock"></div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 14px">
+            <div class="card-header">
+              <span class="card-title"
+                ><i
+                  class="bx bx-bar-chart-alt-2"
+                  style="color: var(--accent)"
+                ></i>
+                Penjualan 7 Hari Terakhir</span
+              >
+            </div>
+            <div class="chart-bar-wrap" id="weekChart"></div>
+          </div>
+        </div>
+
+        <!-- ===== KASIR ===== -->
+        <div class="page" id="page-kasir">
+          <div class="page-header">
+            <div>
+              <h2>Kasir / POS</h2>
+              <p>
+                Kelola pesanan masuk dari pelanggan &amp; input pesanan langsung
+              </p>
+            </div>
+            <button class="btn btn-primary" id="newOfflineOrderBtn">
+              <i class="bx bx-plus"></i> Pesanan Baru (Offline)
+            </button>
+          </div>
+
+          <div class="kasir-layout">
+            <div class="kasir-orders-col">
+              <div class="tabs" id="statusTabs">
+                <button class="tab-btn active" data-filter="semua">
+                  Semua
+                </button>
+                <button class="tab-btn" data-filter="menunggu_verifikasi">
+                  Menunggu Verifikasi
+                </button>
+                <button class="tab-btn" data-filter="baru">Baru</button>
+                <button class="tab-btn" data-filter="proses">Diproses</button>
+                <button class="tab-btn" data-filter="selesai">Selesai</button>
+                <button class="tab-btn" data-filter="batal">Dibatal</button>
+              </div>
+
+              <div class="order-grid" id="orderGrid"></div>
+            </div>
+
+            <!-- Panel input pesanan offline/walk-in, sebelahan dengan grid pesanan -->
+            <div
+              class="kasir-offline-panel"
+              id="offlinePanel"
+              style="display: none"
+            >
+              <div class="offline-panel-header">
+                <h3>
+                  <i class="bx bx-store-alt"></i> Pesanan Langsung (Offline)
+                </h3>
+                <button class="icon-btn" id="closeOfflinePanelBtn">
+                  <i class="bx bx-x"></i>
+                </button>
+              </div>
+
+              <div class="form-row">
+                <label class="form-label">Nama Pembeli (opsional)</label>
+                <input
+                  type="text"
+                  class="input"
+                  id="offlineNama"
+                  placeholder="Contoh: Pembeli Walk-in"
+                />
+              </div>
+
+              <div class="form-row">
+                <label class="form-label">Pilih Produk</label>
+                <div class="offline-product-list" id="offlineProductList"></div>
+                
+                <!-- Container Pemilihan Topping Offline -->
+                <div id="offlineToppingSelection" style="display: none; margin-top: 10px; padding: 12px; background: var(--bg-main); border: 1px solid var(--card-border); border-radius: 10px; grid-column: 1 / -1;">
+                  <label class="form-label" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span>Pilih Topping (Maks 4)</span>
+                    <span id="offlineToppingCounter" style="font-weight:700; color:var(--accent);">0/4</span>
+                  </label>
+                  <div id="offlineToppingList"></div>
+                  <button type="button" class="btn btn-primary btn-sm" id="confirmOfflineToppingBtn" style="width:100%; margin-top:10px; justify-content:center;"><i class='bx bx-check'></i> Konfirmasi Topping</button>
+                </div>
+              </div>
+
+              <!-- Container Checkout Offline, disembunyikan jika keranjang kosong -->
+              <div id="offlineCheckoutSection" style="display: none;">
+                <div class="form-row">
+                  <label class="form-label">Item Dipesan</label>
+                  <div class="offline-cart" id="offlineCart"></div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="offline-total-row">
+                  <span>Total</span>
+                  <span id="offlineTotalPrice">Rp 0</span>
+                </div>
+
+                <div class="form-row">
+                  <label class="form-label">Metode Pembayaran</label>
+                  <div class="payment-method-group" id="offlinePaymentMethod">
+                    <button class="payment-method-btn active" data-method="tunai">
+                      <i class="bx bx-money"></i> Tunai
+                    </button>
+                    <button class="payment-method-btn" data-method="qris">
+                      <i class="bx bx-qr-scan"></i> QRIS
+                    </button>
+                  </div>
+                </div>
+
+                <div id="offlineCashCalc">
+                  <div class="form-row">
+                    <label class="form-label">Uang Diterima</label>
+                    <input
+                      type="number"
+                      class="input"
+                      id="offlineUangDiterima"
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
+                  <div class="cash-quick-amounts" id="cashQuickAmounts"></div>
+                  <div class="change-display" id="offlineKembalianDisplay">
+                    <span>Kembalian</span>
+                    <strong id="offlineKembalianValue">Rp 0</strong>
+                  </div>
+                </div>
+
+                <button
+                  class="btn btn-primary"
+                  style="width: 100%; margin-top: 10px;"
+                  id="submitOfflineOrderBtn"
+                >
+                  <i class="bx bx-check"></i> Selesaikan Pesanan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== PRODUK ===== -->
+        <div class="page" id="page-produk">
+          <div class="page-header">
+            <div>
+              <h2>Manajemen Produk</h2>
+              <p>Tambah, ubah, atau hapus produk menu</p>
+            </div>
+            <button class="btn btn-primary" onclick="openProductModal()">
+              <i class="bx bx-plus"></i> Tambah Produk
+            </button>
+          </div>
+
+          <div class="card">
+            <div class="toolbar">
+              <div class="search-wrap">
+                <i class="bx bx-search"></i>
+                <input
+                  class="input"
+                  id="searchProduk"
+                  placeholder="Cari produk..."
+                />
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Produk</th>
+                    <th>Tipe</th>
+                    <th>Harga</th>
+                    <th>Stok</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="produkTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== TOPPING ===== -->
+        <div class="page" id="page-topping">
+          <div class="page-header">
+            <div>
+              <h2>Manajemen Topping</h2>
+              <p>Kelola daftar topping yang tersedia</p>
+            </div>
+            <button class="btn btn-primary" onclick="openToppingModal()">
+              <i class="bx bx-plus"></i> Tambah Topping
+            </button>
+          </div>
+
+          <div class="card">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Ikon</th>
+                    <th>Nama Topping</th>
+                    <th>ID</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="toppingTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== STOK ===== -->
+        <div class="page" id="page-stok">
+          <div class="page-header">
+            <div>
+              <h2>Manajemen Stok</h2>
+              <p>Pantau dan perbarui stok produk</p>
+            </div>
+            <button class="btn btn-primary" onclick="openStokModal()">
+              <i class="bx bx-plus-circle"></i> Update Stok
+            </button>
+          </div>
+
+          <div class="two-col" style="margin-bottom: 14px">
+            <div class="stat-card">
+              <div class="stat-icon" style="background: var(--success-soft)">
+                <i class="bx bxs-layer" style="color: var(--success)"></i>
+              </div>
+              <div class="stat-body">
+                <div class="stat-label">Total Stok</div>
+                <div class="stat-value" id="totalStok">—</div>
+                <div class="stat-sub">unit tersedia</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: var(--warning-soft)">
+                <i class="bx bxs-error" style="color: var(--warning)"></i>
+              </div>
+              <div class="stat-body">
+                <div class="stat-label">Stok Kritis</div>
+                <div class="stat-value" id="stokKritis">—</div>
+                <div class="stat-sub">produk perlu restock</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom: 14px">
+            <div class="card-header">
+              <span class="card-title">Stok Per Produk</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Produk</th>
+                    <th>Stok Saat Ini</th>
+                    <th>Min. Stok</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="stokTable"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"
+                ><i class="bx bx-history" style="color: var(--accent)"></i>
+                Riwayat Perubahan Stok</span
+              >
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Waktu</th>
+                    <th>Produk</th>
+                    <th>Perubahan</th>
+                    <th>Alasan</th>
+                    <th>Petugas</th>
+                  </tr>
+                </thead>
+                <tbody id="stokHistoryTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== RIWAYAT ===== -->
+        <div class="page" id="page-riwayat">
+          <div class="page-header">
+            <div>
+              <h2>Riwayat Transaksi</h2>
+              <p>Semua transaksi yang pernah masuk</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="toolbar">
+              <div class="search-wrap">
+                <i class="bx bx-search"></i>
+                <input
+                  class="input"
+                  id="searchRiwayat"
+                  placeholder="Cari nama/resi..."
+                />
+              </div>
+              <input
+                type="date"
+                class="input"
+                id="filterTanggal"
+                style="max-width: 160px"
+              />
+              <select class="input" id="filterStatus" style="max-width: 140px">
+                <option value="">Semua Status</option>
+                <option value="menunggu_verifikasi">Menunggu Verifikasi</option>
+                <option value="baru">Baru</option>
+                <option value="proses">Diproses</option>
+                <option value="selesai">Selesai</option>
+                <option value="batal">Dibatal</option>
+              </select>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Resi</th>
+                    <th>Nama</th>
+                    <th>Waktu</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="riwayatTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== LAPORAN ===== -->
+        <div class="page" id="page-laporan">
+          <div class="page-header">
+            <div>
+              <h2>Laporan Penjualan</h2>
+              <p>Analisis pendapatan dan performa produk</p>
+            </div>
+            <button class="btn btn-outline" onclick="printReport()">
+              <i class="bx bx-printer"></i> Cetak / PDF
+            </button>
+          </div>
+
+          <div class="toolbar" style="margin-bottom: 18px">
+            <select class="input" id="reportPeriod" style="max-width: 160px">
+              <option value="hari">Hari Ini</option>
+              <option value="minggu" selected>7 Hari Terakhir</option>
+              <option value="bulan">30 Hari Terakhir</option>
+            </select>
+            <button class="btn btn-outline" onclick="loadLaporan()">
+              <i class="bx bx-refresh"></i> Perbarui
+            </button>
+          </div>
+
+          <div class="stats-grid" id="laporanStats"></div>
+
+          <div class="two-col">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">Penjualan Harian</span>
+              </div>
+              <div class="chart-bar-wrap" id="laporanChart"></div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">Produk Terlaris</span>
+              </div>
+              <div id="laporanTerlaris"></div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 14px" id="laporanPrintArea">
+            <div class="card-header">
+              <span class="card-title">Ringkasan Laporan</span>
+            </div>
+            <div id="laporanSummary"></div>
+          </div>
+        </div>
+
+        <!-- ===== SETTINGS ===== -->
+        <div class="page" id="page-settings">
+          <div class="page-header">
+            <div>
+              <h2>Pengaturan</h2>
+              <p>Konfigurasi sistem admin</p>
+            </div>
+          </div>
+
+          <div class="two-col">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title"
+                  ><i class="bx bx-lock" style="color: var(--accent)"></i> Ubah
+                  Password</span
+                >
+              </div>
+              <div class="form-row">
+                <label class="form-label">Password Lama</label>
+                <input
+                  type="password"
+                  class="input"
+                  id="oldPw"
+                  placeholder="Password lama"
+                />
+              </div>
+              <div class="form-row">
+                <label class="form-label">Password Baru</label>
+                <input
+                  type="password"
+                  class="input"
+                  id="newPw"
+                  placeholder="Password baru"
+                />
+              </div>
+              <div class="form-row">
+                <label class="form-label">Konfirmasi Password Baru</label>
+                <input
+                  type="password"
+                  class="input"
+                  id="confirmPw"
+                  placeholder="Ulangi password baru"
+                />
+              </div>
+              <button class="btn btn-primary" onclick="changePassword()">
+                <i class="bx bx-save"></i> Simpan Password
+              </button>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title"
+                  ><i class="bx bx-store" style="color: var(--accent)"></i> Info
+                  Toko</span
+                >
+              </div>
+              <div class="form-row">
+                <label class="form-label">Nama Toko</label>
+                <input
+                  type="text"
+                  class="input"
+                  id="settingNamaToko"
+                  placeholder="Tabato"
+                />
+              </div>
+              <div class="form-row">
+                <label class="form-label">Tagline</label>
+                <input
+                  type="text"
+                  class="input"
+                  id="settingTagline"
+                  placeholder="Tahu Baso Toping"
+                />
+              </div>
+              <div class="form-row">
+                <label class="form-label">Batas Stok Kritis (unit)</label>
+                <input
+                  type="number"
+                  class="input"
+                  id="settingMinStok"
+                  value="10"
+                  min="0"
+                />
+              </div>
+              <button class="btn btn-primary" onclick="saveSettings()">
+                <i class="bx bx-save"></i> Simpan Pengaturan
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- ===== MODALS ===== -->
+
+    <!-- Modal: Produk -->
+    <div class="modal-overlay" id="modalProduk" role="dialog" aria-modal="true" aria-labelledby="modalProdukTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title" id="modalProdukTitle">Tambah Produk</span>
+          <button class="icon-btn" onclick="closeModal('modalProduk')" aria-label="Tutup">
+            <i class="bx bx-x"></i>
+          </button>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Nama Produk *</label>
+          <input
+            type="text"
+            class="input"
+            id="pNama"
+            placeholder="Contoh: Keju"
+          />
+        </div>
+        <div class="form-row">
+          <label class="form-label">Deskripsi</label>
+          <textarea
+            class="input"
+            id="pDeskripsi"
+            rows="2"
+            placeholder="Deskripsi singkat..."
+          ></textarea>
+        </div>
+        <div class="two-col">
+          <div class="form-row">
+            <label class="form-label">Harga (Rp) *</label>
+            <input
+              type="number"
+              class="input"
+              id="pHarga"
+              placeholder="13000"
+              min="0"
+            />
+          </div>
+          <div class="form-row">
+            <label class="form-label">Isi / Ukuran (misal: 4 atau 250 ml)</label>
+            <input
+              type="text"
+              class="input"
+              id="pIsi"
+              placeholder="4 atau 250 ml"
+            />
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Tipe</label>
+          <select class="input" id="pType">
+            <option value="single">Single (1 topping tetap)</option>
+            <option value="mix">Mix (pelanggan pilih topping)</option>
+            <option value="drink">Drink (Minuman / Tanpa Topping)</option>
+          </select>
+        </div>
+        <div class="form-row" id="pToppingRow">
+          <label class="form-label">Topping Tetap (untuk tipe Single)</label>
+          <select class="input" id="pTopping"></select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Ikon Boxicons</label>
+          <input type="text" class="input" id="pIcon" placeholder="bx-leaf" />
+        </div>
+        <div class="form-row">
+          <label class="form-label">Badge (opsional)</label>
+          <input
+            type="text"
+            class="input"
+            id="pBadge"
+            placeholder="Bisa Custom"
+          />
+        </div>
+        <div class="form-row">
+          <label class="form-label">Stok Awal (unit)</label>
+          <input
+            type="number"
+            class="input"
+            id="pStok"
+            placeholder="50"
+            min="0"
+          />
+        </div>
+        <input type="hidden" id="pEditId" />
+        <button
+          class="btn btn-primary"
+          style="width: 100%; margin-top: 6px"
+          onclick="saveProduk()"
+        >
+          <i class="bx bx-save"></i> Simpan
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal: Topping -->
+    <div class="modal-overlay" id="modalTopping" role="dialog" aria-modal="true" aria-labelledby="modalToppingTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title" id="modalToppingTitle">Tambah Topping</span>
+          <button class="icon-btn" onclick="closeModal('modalTopping')" aria-label="Tutup">
+            <i class="bx bx-x"></i>
+          </button>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Nama Topping *</label>
+          <input
+            type="text"
+            class="input"
+            id="tNama"
+            placeholder="Contoh: Keju, Mayo, dll."
+          />
+        </div>
+        <div class="form-row">
+          <label class="form-label">ID (slug) *</label>
+          <input type="text" class="input" id="tId" placeholder="keju" />
+          <small style="display:block; margin-top:4px; font-size:11px; color:var(--text-muted);">
+            Dibuat otomatis dari nama topping. Boleh dibiarkan saja.
+          </small>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Ikon Boxicons</label>
+          <input
+            type="text"
+            class="input"
+            id="tIcon"
+            placeholder="bx-star"
+          />
+          <small style="display:block; margin-top:4px; font-size:11px; color:var(--text-muted); line-height: 1.4;">
+            Kode ikon dari <a href="https://boxicons.com" target="_blank" style="color:var(--accent); text-decoration:underline;">boxicons.com</a>. Kosongkan untuk menggunakan ikon bintang default.
+          </small>
+        </div>
+        <input type="hidden" id="tEditId" />
+        <button
+          class="btn btn-primary"
+          style="width: 100%; margin-top: 6px"
+          onclick="saveTopping()"
+        >
+          <i class="bx bx-save"></i> Simpan
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal: Stok Update -->
+    <div class="modal-overlay" id="modalStok" role="dialog" aria-modal="true" aria-labelledby="modalStokTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title" id="modalStokTitle">Update Stok Produk</span>
+          <button class="icon-btn" onclick="closeModal('modalStok')" aria-label="Tutup">
+            <i class="bx bx-x"></i>
+          </button>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Produk</label>
+          <select class="input" id="stokProduk"></select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Jenis Perubahan</label>
+          <select class="input" id="stokJenis">
+            <option value="tambah">Tambah Stok</option>
+            <option value="kurang">Kurangi Stok</option>
+            <option value="set">Set Stok (angka pasti)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Jumlah (unit)</label>
+          <input
+            type="number"
+            class="input"
+            id="stokJumlah"
+            placeholder="0"
+            min="0"
+          />
+        </div>
+        <div class="form-row">
+          <label class="form-label">Alasan</label>
+          <input
+            type="text"
+            class="input"
+            id="stokAlasan"
+            placeholder="Contoh: Restock dari supplier"
+          />
+        </div>
+        <button
+          class="btn btn-primary"
+          style="width: 100%; margin-top: 6px"
+          onclick="saveStok()"
+        >
+          <i class="bx bx-save"></i> Simpan
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal: Detail Pesanan -->
+    <div class="modal-overlay" id="modalOrder" role="dialog" aria-modal="true" aria-labelledby="modalOrderTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title" id="modalOrderTitle">Detail Pesanan</span>
+          <button class="icon-btn" onclick="closeModal('modalOrder')" aria-label="Tutup">
+            <i class="bx bx-x"></i>
+          </button>
+        </div>
+        <div id="orderDetailContent"></div>
+      </div>
+    </div>
+
+    <!-- Firebase & App -->
+    <script type="module" src="admin/main.js"></script>
+  </body>
+</html>
