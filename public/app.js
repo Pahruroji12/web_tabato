@@ -118,10 +118,9 @@ function showToast(message, icon = "bx-info-circle") {
 }
 
 function generateResi() {
-  const date = new Date();
-  const ymd = date.toISOString().slice(2, 10).replace(/-/g, "");
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `TBT-${ymd}-${rand}`;
+  const now = Date.now();
+  const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `TBT-${now}-${rand}`;
 }
 
 // ---------- DARK MODE ----------
@@ -654,14 +653,19 @@ function switchCheckoutPaymentMethod(method) {
 function validateForm() {
   let valid = true;
   const nama = document.getElementById("inputNama");
+  const wa = document.getElementById("inputWa");
   const lokasi = document.getElementById("inputLokasi");
 
-  [nama, lokasi].forEach((el) =>
+  [nama, wa, lokasi].forEach((el) =>
     el.closest(".form-group").classList.remove("error"),
   );
 
   if (!nama.value.trim()) {
     nama.closest(".form-group").classList.add("error");
+    valid = false;
+  }
+  if (!wa.value.trim()) {
+    wa.closest(".form-group").classList.add("error");
     valid = false;
   }
   if (!lokasi.value.trim()) {
@@ -684,12 +688,16 @@ function validateForm() {
   return valid;
 }
 
+let isSubmitting = false;
+
 async function submitOrder() {
+  if (isSubmitting) return;
   if (!validateForm()) return;
   if (cart.length === 0) {
     showToast("Keranjang masih kosong", "bx-error-circle");
     return;
   }
+  isSubmitting = true;
 
   const submitBtn = document.getElementById("submitOrderBtn");
   submitBtn.disabled = true;
@@ -730,6 +738,7 @@ async function submitOrder() {
 
   try {
     await setDoc(doc(db, "pesanan", resi), pesananDoc);
+    isSubmitting = false;
     showSuccessScreen(resi, lokasi_antar);
     cart = [];
     renderCartBadgeAndBar();
@@ -739,6 +748,7 @@ async function submitOrder() {
       "Gagal mengirim pesanan. Cek koneksi & konfigurasi Firebase.",
       "bx-error-circle",
     );
+    isSubmitting = false;
     submitBtn.disabled = false;
     submitBtn.innerHTML = `<i class='bx bx-send'></i><span>Pesan Sekarang</span>`;
   }

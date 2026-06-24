@@ -181,6 +181,9 @@ export function bindKasirEvents() {
       return;
     }
     if (action === "batal") {
+      const order = allOrders.find((o) => o.docId === docId);
+      const nama = order ? order.nama_pemesan : docId;
+      if (!confirm(`Yakin ingin membatalkan pesanan dari "${nama}"?`)) return;
       updateOrderStatus(docId, "batal");
       return;
     }

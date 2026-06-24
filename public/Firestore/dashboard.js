@@ -1,33 +1,102 @@
 // ============================================================
 // ADMIN: DASHBOARD
-// Kartu statistik harian, widget pesanan aktif & stok rendah,
-// dan grafik pendapatan 7 hari terakhir.
+// Kartu statistik per tanggal (Tunai/QRIS terpisah), widget
+// pesanan aktif & stok rendah, dan grafik pendapatan 7 hari.
 // ============================================================
 
 import { allOrders, getMenu, getStok, adminSettings } from "../admin/state.js";
-import { db, collection, query, where, getAggregateFromServer, sum } from "../firebase-config.js";
+import { db, collection, query, where, orderBy, getDocs, getAggregateFromServer, sum } from "../firebase-config.js";
 import { formatRp, statusBadge } from "./utils.js";
 
+/** Helper: format Date ke string YYYY-MM-DD */
+function toDateStr(d) {
+  return (
+    d.getFullYear() +
+    "-" +
+    String(d.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(d.getDate()).padStart(2, "0")
+  );
+}
+
 export async function renderDashboard() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayOrders = allOrders.filter((o) => {
-    const d = o.waktu_pesan?.toDate
+  // --- 1. Baca tanggal dari input, default ke hari ini ---
+  const dateInput = document.getElementById("dashDate");
+  let targetDateStr = dateInput ? dateInput.value : "";
+  if (!targetDateStr) {
+    targetDateStr = toDateStr(new Date());
+    if (dateInput) dateInput.value = targetDateStr;
+  }
+
+  const parts = targetDateStr.split("-");
+  const targetDate = new Date(
+    Number(parts[0]),
+    Number(parts[1]) - 1,
+    Number(parts[2]),
+    0, 0, 0, 0
+  );
+  const endDate = new Date(
+    Number(parts[0]),
+    Number(parts[1]) - 1,
+    Number(parts[2]),
+    23, 59, 59, 999
+  );
+
+  // Rentang 7 hari ke belakang untuk grafik
+  const chartStartDate = new Date(targetDate);
+  chartStartDate.setDate(chartStartDate.getDate() - 6);
+  chartStartDate.setHours(0, 0, 0, 0);
+
+  // --- 2. Loading placeholder ---
+  document.getElementById("statGrid").innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted)"><span class="spinner"></span> Memuat statistik...</div>`;
+
+  // --- 3. Query Firestore: pesanan di rentang 7 hari ---
+  let allFetchedOrders = [];
+  try {
+    const q = query(
+      collection(db, "pesanan"),
+      where("waktu_pesan", ">=", chartStartDate),
+      where("waktu_pesan", "<=", endDate),
+      orderBy("waktu_pesan", "desc")
+    );
+    const snap = await getDocs(q);
+    allFetchedOrders = snap.docs.map((d) => ({ docId: d.id, ...d.data() }));
+  } catch (err) {
+    console.warn("Gagal memuat dashboard dari Firestore, menggunakan data lokal fallback:", err);
+    allFetchedOrders = allOrders.filter((o) => {
+      const t = o.waktu_pesan?.toDate
+        ? o.waktu_pesan.toDate()
+        : new Date(o.waktu_pesan || 0);
+      return t >= chartStartDate && t <= endDate;
+    });
+  }
+
+  // --- 4. Filter pesanan HANYA untuk tanggal terpilih ---
+  const ordersOnDate = allFetchedOrders.filter((o) => {
+    const t = o.waktu_pesan?.toDate
       ? o.waktu_pesan.toDate()
       : new Date(o.waktu_pesan || 0);
-    return d >= today;
+    return t >= targetDate && t <= endDate;
   });
 
-  const todayRevenue = todayOrders
-    .filter((o) => o.status === "selesai")
-    .reduce((s, o) => s + (o.total_harga || 0), 0);
+  const selesai = ordersOnDate.filter((o) => o.status === "selesai");
+  const dateRevenue = selesai.reduce((s, o) => s + (o.total_harga || 0), 0);
 
-  // Hitung total pendapatan secara efisien menggunakan server-side aggregation (hemat memory & reads)
+  // --- 5. Pisahkan Tunai vs QRIS ---
+  const selesaiTunai = selesai.filter(
+    (o) => o.metode_bayar === "tunai" || o.metode_bayar === "cash"
+  );
+  const selesaiQris = selesai.filter((o) => o.metode_bayar === "qris");
+
+  const totalTunai = selesaiTunai.reduce((s, o) => s + (o.total_harga || 0), 0);
+  const totalQris = selesaiQris.reduce((s, o) => s + (o.total_harga || 0), 0);
+
+  // --- 6. Total pendapatan sepanjang waktu (server-side aggregation) ---
   let totalRevenue = 0;
   try {
     const qSelesai = query(collection(db, "pesanan"), where("status", "==", "selesai"));
     const snapshot = await getAggregateFromServer(qSelesai, {
-      totalRev: sum("total_harga")
+      totalRev: sum("total_harga"),
     });
     totalRevenue = snapshot.data().totalRev || 0;
   } catch (err) {
@@ -37,29 +106,56 @@ export async function renderDashboard() {
       .reduce((s, o) => s + (o.total_harga || 0), 0);
   }
 
+  // Pesanan aktif (real-time dari allOrders)
   const activeCount = allOrders.filter(
     (o) =>
       o.status === "baru" ||
       o.status === "proses" ||
-      o.status === "menunggu_verifikasi",
+      o.status === "menunggu_verifikasi"
   ).length;
-  const todayTrx = todayOrders.length;
 
+  const dateTrx = ordersOnDate.length;
+
+  // Label tanggal
+  const tanggalLabel = targetDate.toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
+  // --- 7. Stat cards (6 kartu) ---
   document.getElementById("statGrid").innerHTML = `
     <div class="stat-card">
       <div class="stat-icon" style="background:var(--accent-soft)"><i class='bx bxs-dollar-circle' style="color:var(--accent)"></i></div>
       <div class="stat-body">
-        <div class="stat-label">Pendapatan Hari Ini</div>
-        <div class="stat-value">${formatRp(todayRevenue)}</div>
-        <div class="stat-sub">dari pesanan selesai</div>
+        <div class="stat-label">Pendapatan ${tanggalLabel.split(",")[0]}</div>
+        <div class="stat-value">${formatRp(dateRevenue)}</div>
+        <div class="stat-sub">dari ${selesai.length} pesanan selesai</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(16,185,129,.12)"><i class='bx bxs-wallet' style="color:#10b981"></i></div>
+      <div class="stat-body">
+        <div class="stat-label">Pendapatan Tunai</div>
+        <div class="stat-value">${formatRp(totalTunai)}</div>
+        <div class="stat-sub">${selesaiTunai.length} transaksi tunai</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(99,102,241,.12)"><i class='bx bxs-credit-card' style="color:#6366f1"></i></div>
+      <div class="stat-body">
+        <div class="stat-label">Pendapatan QRIS</div>
+        <div class="stat-value">${formatRp(totalQris)}</div>
+        <div class="stat-sub">${selesaiQris.length} transaksi QRIS</div>
       </div>
     </div>
     <div class="stat-card">
       <div class="stat-icon" style="background:var(--info-soft)"><i class='bx bxs-shopping-bags' style="color:var(--info)"></i></div>
       <div class="stat-body">
-        <div class="stat-label">Transaksi Hari Ini</div>
-        <div class="stat-value">${todayTrx}</div>
-        <div class="stat-sub">pesanan masuk</div>
+        <div class="stat-label">Transaksi Masuk</div>
+        <div class="stat-value">${dateTrx}</div>
+        <div class="stat-sub">pesanan pada tanggal ini</div>
       </div>
     </div>
     <div class="stat-card">
@@ -80,13 +176,13 @@ export async function renderDashboard() {
     </div>
   `;
 
-  // Active orders widget
+  // --- 8. Active orders widget (real-time, tidak tergantung filter tanggal) ---
   const active = allOrders
     .filter(
       (o) =>
         o.status === "baru" ||
         o.status === "proses" ||
-        o.status === "menunggu_verifikasi",
+        o.status === "menunggu_verifikasi"
     )
     .slice(0, 5);
   const ao = document.getElementById("dashActiveOrders");
@@ -103,15 +199,20 @@ export async function renderDashboard() {
         </div>
         ${statusBadge(o.status)}
       </div>
-    `,
+    `
       )
       .join("");
   }
 
-  // Low stock widget
+  // --- 9. Low stock widget ---
   const menu = getMenu();
   const lowStock = menu
-    .filter((m) => m.id !== "tb-mix" && m.type !== "mix" && getStok(m.id) <= (adminSettings.minStok || 10))
+    .filter(
+      (m) =>
+        m.id !== "tb-mix" &&
+        m.type !== "mix" &&
+        getStok(m.id) <= (adminSettings.minStok || 10)
+    )
     .slice(0, 6);
   const ls = document.getElementById("dashLowStock");
   if (lowStock.length === 0) {
@@ -128,29 +229,32 @@ export async function renderDashboard() {
       .join("");
   }
 
-  // 7 Day chart
-  renderWeekChart();
+  // --- 10. Grafik 7 hari ke belakang dari tanggal terpilih ---
+  renderWeekChart(allFetchedOrders, targetDate);
 }
 
-function renderWeekChart() {
+function renderWeekChart(allFetchedOrders, targetDate) {
   const days = [];
   for (let i = 6; i >= 0; i--) {
-    const d = new Date();
+    const d = new Date(targetDate);
     d.setDate(d.getDate() - i);
     d.setHours(0, 0, 0, 0);
     const end = new Date(d);
     end.setHours(23, 59, 59, 999);
-    const rev = allOrders
+    const rev = allFetchedOrders
       .filter((o) => {
+        if (o.status !== "selesai") return false;
         const t = o.waktu_pesan?.toDate
           ? o.waktu_pesan.toDate()
           : new Date(o.waktu_pesan || 0);
-        return o.status === "selesai" && t >= d && t <= end;
+        return t >= d && t <= end;
       })
       .reduce((s, o) => s + (o.total_harga || 0), 0);
     days.push({
       label: d.toLocaleDateString("id-ID", { weekday: "short" }),
+      dateLabel: d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" }),
       rev,
+      isTarget: i === 0,
     });
   }
 
@@ -158,11 +262,23 @@ function renderWeekChart() {
   document.getElementById("weekChart").innerHTML = days
     .map((d) => {
       const h = Math.max(4, Math.round((d.rev / max) * 100));
+      const barColor = d.isTarget ? "var(--accent)" : "";
+      const barStyle = barColor
+        ? `height:${h}%;background:${barColor}`
+        : `height:${h}%`;
       return `<div class="chart-bar-col">
       <div class="chart-bar-val">${d.rev > 0 ? formatRp(d.rev).replace("Rp ", "") : ""}</div>
-      <div class="chart-bar" style="height:${h}%" title="${formatRp(d.rev)}"></div>
-      <div class="chart-bar-label">${d.label}</div>
+      <div class="chart-bar" style="${barStyle}" title="${formatRp(d.rev)}"></div>
+      <div class="chart-bar-label">${d.label}<br><span style="font-size:9px;opacity:.7">${d.dateLabel}</span></div>
     </div>`;
     })
     .join("");
+}
+
+export function bindDashboardEvents() {
+  const dateInput = document.getElementById("dashDate");
+  if (dateInput) {
+    dateInput.value = toDateStr(new Date());
+    dateInput.addEventListener("change", renderDashboard);
+  }
 }

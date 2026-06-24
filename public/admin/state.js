@@ -224,6 +224,7 @@ export async function deductStockForOrder(detailItems, docId, actionSource = "Si
 
   const stokDocRef = doc(db, "config", "stok");
   const newLogs = [];
+  const computedStok = {}; // Kumpulkan hasil hitung, terapkan setelah transaksi sukses
 
   try {
     await runTransaction(db, async (transaction) => {
@@ -235,12 +236,13 @@ export async function deductStockForOrder(detailItems, docId, actionSource = "Si
 
       const updatedStokData = { ...currentStokData };
       newLogs.length = 0; // Bersihkan jika transaksi dicoba ulang
+      for (const k in computedStok) delete computedStok[k];
 
       for (const [menuId, deductAmount] of Object.entries(deductions)) {
         const oldQty = currentStokData[menuId] ? currentStokData[menuId].qty : 50;
         const newQty = Math.max(0, oldQty - deductAmount);
         
-        localStok[menuId] = newQty;
+        computedStok[menuId] = newQty;
         updatedStokData[menuId] = {
           qty: newQty,
           habis: newQty <= 0
@@ -268,6 +270,11 @@ export async function deductStockForOrder(detailItems, docId, actionSource = "Si
         transaction.set(newLogRef, log);
       });
     });
+
+    // Terapkan ke state lokal SETELAH transaksi berhasil
+    for (const [menuId, val] of Object.entries(computedStok)) {
+      localStok[menuId] = val;
+    }
 
     // Tambahkan ke state memori lokal jika transaksi sukses
     stokHistory.unshift(...newLogs);
@@ -344,6 +351,7 @@ export async function restoreStockForOrder(detailItems, docId, actionSource = "S
 
   const stokDocRef = doc(db, "config", "stok");
   const newLogs = [];
+  const computedStok = {}; // Kumpulkan hasil hitung, terapkan setelah transaksi sukses
 
   try {
     await runTransaction(db, async (transaction) => {
@@ -355,12 +363,13 @@ export async function restoreStockForOrder(detailItems, docId, actionSource = "S
 
       const updatedStokData = { ...currentStokData };
       newLogs.length = 0; // Bersihkan jika transaksi dicoba ulang
+      for (const k in computedStok) delete computedStok[k];
 
       for (const [menuId, addAmount] of Object.entries(additions)) {
         const oldQty = currentStokData[menuId] ? currentStokData[menuId].qty : 50;
         const newQty = oldQty + addAmount;
         
-        localStok[menuId] = newQty;
+        computedStok[menuId] = newQty;
         updatedStokData[menuId] = {
           qty: newQty,
           habis: newQty <= 0
@@ -388,6 +397,11 @@ export async function restoreStockForOrder(detailItems, docId, actionSource = "S
         transaction.set(newLogRef, log);
       });
     });
+
+    // Terapkan ke state lokal SETELAH transaksi berhasil
+    for (const [menuId, val] of Object.entries(computedStok)) {
+      localStok[menuId] = val;
+    }
 
     // Tambahkan ke state memori lokal jika transaksi sukses
     stokHistory.unshift(...newLogs);

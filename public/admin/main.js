@@ -20,7 +20,7 @@ import {
   showOrderDetail,
   bindNotificationEvents,
 } from "../Firestore/orders.js";
-import { renderDashboard } from "../Firestore/dashboard.js";
+import { renderDashboard, bindDashboardEvents } from "../Firestore/dashboard.js";
 import { renderKasir, bindKasirEvents } from "../Firestore/kasir.js";
 import {
   renderProduk,
@@ -37,7 +37,7 @@ import {
   bindToppingEvents,
 } from "../Firestore/topping.js";
 import { renderStok, openStokModal, saveStok } from "../Firestore/stok.js";
-import { renderRiwayat, bindRiwayatEvents } from "../Firestore/riwayat.js";
+import { renderRiwayat, bindRiwayatEvents, printRiwayat } from "../Firestore/riwayat.js";
 import {
   loadLaporan,
   bindLaporanEvents,
@@ -67,6 +67,7 @@ window.openStokModal = openStokModal;
 window.saveStok = saveStok;
 window.loadLaporan = loadLaporan;
 window.printReport = printReport;
+window.printRiwayat = printRiwayat;
 window.saveSettings = saveSettings;
 window.changePassword = changePassword;
 
@@ -110,6 +111,27 @@ function bindRefreshButton() {
   });
 }
 
+// ====== CONNECTION STATUS INDICATOR ======
+function initConnectionMonitor() {
+  function updateStatus() {
+    const el = document.getElementById("connectionStatus");
+    const textEl = document.getElementById("connectionText");
+    if (!el || !textEl) return;
+    if (navigator.onLine) {
+      el.style.background = "var(--success-bg, rgba(16,185,129,0.1))";
+      el.style.color = "var(--success, #10b981)";
+      textEl.textContent = "Online";
+    } else {
+      el.style.background = "var(--danger-bg, rgba(239,68,68,0.1))";
+      el.style.color = "var(--danger, #ef4444)";
+      textEl.textContent = "Offline";
+    }
+  }
+  window.addEventListener("online", updateStatus);
+  window.addEventListener("offline", updateStatus);
+  updateStatus();
+}
+
 // ====== INIT APP (dipanggil setelah login sukses) ======
 async function initApp() {
   initTheme();
@@ -146,6 +168,7 @@ async function bootstrap() {
 
   bindAuthEvents(initApp);
   bindNavigationEvents();
+  bindDashboardEvents();
   bindThemeToggle();
   bindKasirEvents();
   bindProdukEvents();
@@ -158,6 +181,7 @@ async function bootstrap() {
   // Tema diterapkan dari awal walau belum login (supaya halaman login
   // juga ikut mode terang/gelap yang benar)
   initTheme();
+  initConnectionMonitor();
 }
 
 document.addEventListener("DOMContentLoaded", bootstrap);

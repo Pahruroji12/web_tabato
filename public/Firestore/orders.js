@@ -236,10 +236,9 @@ export async function updateOrderStatus(docId, newStatus, detailItems) {
 // karena pembayaran sudah diterima saat itu juga di kasir.
 // ============================================================
 function generateResiOffline() {
-  const date = new Date();
-  const ymd = date.toISOString().slice(2, 10).replace(/-/g, "");
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `TBT-OFF-${ymd}-${rand}`;
+  const now = Date.now();
+  const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `TBT-OFF-${now}-${rand}`;
 }
 
 export async function createOfflineOrder({

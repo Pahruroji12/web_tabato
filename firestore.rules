@@ -26,11 +26,19 @@ service cloud.firestore {
       allow read, write: if false;
     }
     
-    // Semua orang boleh membuat pesanan baru (online).
+    // Pesanan online: siapa saja boleh membuat pesanan baru (create) JIKA format data valid.
+    // Pesanan offline: hanya admin terautentikasi yang boleh membuat pesanan dengan status "selesai".
     // Pelanggan boleh melihat status pesanan miliknya sendiri (read dengan get).
     // Hanya admin terautentikasi yang bisa melihat list semua pesanan (list) atau meng-update statusnya.
     match /pesanan/{orderId} {
-      allow create: if true;
+      allow create: if request.auth != null
+        || (
+          request.resource.data.keys().hasAll(['nama_pemesan', 'detail_item', 'total_harga', 'status', 'waktu_pesan', 'sumber'])
+          && request.resource.data.status in ['baru', 'menunggu_verifikasi']
+          && request.resource.data.total_harga is number
+          && request.resource.data.total_harga > 0
+          && request.resource.data.sumber == 'online'
+        );
       allow get: if true; // Untuk checking resi mandiri
       allow list, update, delete: if request.auth != null;
     }
